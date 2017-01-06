@@ -1,7 +1,10 @@
 Revision history for Crypt::Mode::CBC::Easy
 
 {{$NEXT}}
-	Fixed documentation.
+    Cleaned up decrypt code.	
+
+0.003     2017-01-05 20:09:32-08:00 America/Los_Angeles
+    Fixed documentation.
 
 0.002     2017-01-05 19:52:28-08:00 America/Los_Angeles
 	Fixed documentation to include default for crypt_mode_cbc.

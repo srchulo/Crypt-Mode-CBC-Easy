@@ -181,13 +181,13 @@ sub decrypt {
     croak "must pass in text to be decrypted" unless $cipher_text;
 
     my $separator = $self->separator;
-    my ($iv, $to_decrypt) = split qr/$separator/, MIME::Base64::decode($cipher_text);
+    my ($iv, $to_decrypt) = split $separator, MIME::Base64::decode($cipher_text);
 
     croak "invalid cipher text" unless $iv and $to_decrypt;
 
     my $plain_text_with_checksum = $self->crypt_mode_cbc->decrypt($to_decrypt, $self->key, $iv);
     
-    my @decrypted_values = split($self->separator, $plain_text_with_checksum);
+    my @decrypted_values = split $separator, $plain_text_with_checksum;
     my $digest = pop @decrypted_values;
     my $confirm_digest = $self->_get_digest($iv, \@decrypted_values);
 
