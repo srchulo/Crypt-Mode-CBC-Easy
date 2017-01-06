@@ -1,4 +1,7 @@
 Revision history for Crypt::Mode::CBC::Easy
 
 {{$NEXT}}
+	Fixed documentation to include default for crypt_mode_cbc.
+
+0.001     2017-01-05 19:49:27-08:00 America/Los_Angeles
 	Released to the world!

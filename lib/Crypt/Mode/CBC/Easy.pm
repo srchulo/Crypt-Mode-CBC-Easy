@@ -56,7 +56,7 @@ has key => (
 =method crypt_mode_cbc
 
 Sets the L<Crypt::Mode::CBC> that will be used for encryption. Make sure if you change this that you set L</block_size> to the
-correct value for the L<Crypt::Cipher> you have chosen.
+correct value for the L<Crypt::Cipher> you have chosen. The default value uses L<Crypt::Cipher::Twofish>.
 
 =cut
 
