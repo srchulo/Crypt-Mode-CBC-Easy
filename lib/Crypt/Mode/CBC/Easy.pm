@@ -39,11 +39,17 @@ a checksum to make sure that all decrypted text has not been tampered with.
         print "plain text: $plain_text\n";
     }
 
+    # or get plain texts as one string separated by separator
+    my $plain_text = $crypt->decrypt($cipher_text);
+
+    print "Plain text: $plain_text\n";
+
 =cut
 
 =method key
 
-The key that will be used for encrypting and decrypting.
+The key that will be used for encrypting and decrypting. The key should be the appropriate length for the L<Crypt::Cipher> used with
+L</crypt_mode_cbc>. For the default L<Crypt::Cipher> used, Twofish, the key should be 128/192/256 bits.
 
 =cut
 
@@ -112,7 +118,7 @@ has bytes_random_secure => (
 
 =method separator
 
-Sets the separator between the encrypted text and its checksum. This should not need to be changed, and is only available for backwards
+Sets the separator between the initialization vector, the encrypted text, and the checksum. This should not need to be changed, and is only available for backwards
 compatability with L<DBIx::Raw> which used to use L<DBIx::Raw::Crypt>. Default value is '::~;~;~::'. If you need to change this for backwards
 compatability, use ':;:'.
 
@@ -127,7 +133,7 @@ has separator => (
 
 =method encrypt
 
-Encrypts bytes or an array of bytes.
+Encrypts plain texts or an array of plain texts.
 
     my $cipher_text = $crypt->encrypt($text);
 
@@ -156,7 +162,7 @@ sub encrypt {
 
 =method decrypt
 
-Decrypts cipher text into one string or an array of strings.
+Decrypts cipher text into one plain text or an array of plain texts.
 
     my $plain_text = $crypt->encrypt($cipher_text);
 
