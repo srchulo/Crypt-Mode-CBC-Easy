@@ -1,0 +1,206 @@
+use strict;
+package Crypt::Mode::CBC::Easy;
+#ABSTRACT: Encrypts/decrypts text and verifies decrypted text with a checksum and a random initialization vector.
+
+use Mouse;
+use Crypt::CBC;
+use Digest::SHA;
+use MIME::Base64;
+use Bytes::Random::Secure qw//;
+use Crypt::Mode::CBC;
+use Carp;
+
+=head1 DESCRIPTION
+
+A convenience class that wraps L<Crypt::Mode::CBC> and adds random initialization vector support along with
+a checksum to make sure that all decrypted text has not been tampered with. 
+
+=cut
+
+=head1 SYNOPSIS
+
+    my $crypt = Crypt::Mode::CBC::Easy->new(key => $bytes);
+    my $cipher_text = $crypt->encrypt("hello");
+
+    print "Cipher text: $cipher_text\n";
+
+    my $plain_text = $crypt->decrypt($cipher_text);
+
+    print "Plain text: $plain_text\n";
+
+    # encrypt and decrypt an array of values
+    my $cipher_text = $crypt->encrypt(@texts);
+
+    print "Cipher text: $cipher_text\n";
+
+    my @plain_texts = $crypt->decrypt($cipher_text);
+
+    for my $plain_text (@plain_texts) {
+        print "plain text: $plain_text\n";
+    }
+
+=cut
+
+=method key
+
+The key that will be used for encrypting and decrypting.
+
+=cut
+
+has key => (
+    isa => 'Str',
+    is => 'ro',
+    required => 1,
+);
+
+=method crypt_mode_cbc
+
+Sets the L<Crypt::Mode::CBC> that will be used for encryption. Make sure if you change this that you set L</block_size> to the
+correct value for the L<Crypt::Cipher> you have chosen.
+
+=cut
+
+has crypt_mode_cbc => (
+    isa => 'Crypt::Mode::CBC',
+    is => 'ro',
+    required => 1,
+    default => sub { Crypt::Mode::CBC->new('Twofish') },
+);
+
+=method block_size
+
+Sets the block size for the L<Crypt::Cipher> that is used. Default is 16, because this is the block size for L<Crypt::Cipher::Twofish>.
+
+=cut
+
+has block_size => (
+    isa => 'Int',
+    is => 'ro',
+    required => 1,
+    default => 16,
+);
+
+=method checksum_digest_hex
+
+This is a subroutine reference to the digest hex that will be used for the checksum.
+
+    my $crypt = Crypt::Mode::CBC::Easy->new(key => $bytes, checksum_digest_hex => \&Digest::SHA::sha256_hex);
+
+Default is L<Digest::SHA::sha512_hex|Digest::SHA>.
+
+=cut
+
+has checksum_digest_hex => (
+    isa => 'CodeRef',
+    is => 'ro',
+    required => 1,
+    default => sub { \&Digest::SHA::sha512_hex },
+);
+
+=method bytes_random_secure
+
+A L<Bytes::Random::Secure> instance that is used to generate the initialization vector for each encryption. Default is a L<Bytes::Random::Secure> instance with NonBlocking set to true.
+
+=cut
+
+has bytes_random_secure => (
+    isa => 'Bytes::Random::Secure',
+    is => 'ro',
+    required => 1,
+    default => sub { Bytes::Random::Secure->new(NonBlocking => 1) },
+);
+
+=method separator
+
+Sets the separator between the encrypted text and its checksum. This should not need to be changed, and is only available for backwards
+compatability with L<DBIx::Raw> which used to use L<DBIx::Raw::Crypt>. Default value is '::~;~;~::'. If you need to change this for backwards
+compatability, use ':;:'.
+
+=cut
+
+has separator => (
+    isa => 'Str',
+    is => 'ro',
+    required => 1,
+    default => '::~;~;~::',
+);
+
+=method encrypt
+
+Encrypts bytes or an array of bytes.
+
+    my $cipher_text = $crypt->encrypt($text);
+
+    # OR
+    
+    my $cipher_text = $crypt->encrypt(@texts);
+
+=cut
+
+sub encrypt {
+    my ($self, @plain_texts) = @_;
+
+    croak "must pass in text to be encrypted" unless @plain_texts;
+
+    my $iv = $self->bytes_random_secure->bytes($self->block_size);
+
+    my $digest = $self->_get_digest($iv, \@plain_texts);
+    push @plain_texts, $digest;
+    
+    my $plain_texts_str = join($self->separator, @plain_texts);    
+    my $encrypted = $iv . $self->separator . $self->crypt_mode_cbc->encrypt($plain_texts_str, $self->key, $iv);    
+    my $cipher_text = MIME::Base64::encode($encrypted);
+
+    return $cipher_text;
+}
+
+=method decrypt
+
+Decrypts cipher text into one string or an array of strings.
+
+    my $plain_text = $crypt->encrypt($cipher_text);
+
+    # OR
+    
+    my @plain_texts = $crypt->decrypt($cipher_text);
+
+If you previously encrypted an array of values and ask for a result in a scalar context, you will be returned the 
+the decrypted values separated by L</separator>.
+
+=cut
+
+sub decrypt { 
+    my ($self, $cipher_text) = @_;
+
+    croak "must pass in text to be decrypted" unless $cipher_text;
+
+    my $separator = $self->separator;
+    my ($iv, $to_decrypt) = split qr/$separator/, MIME::Base64::decode($cipher_text);
+
+    croak "invalid cipher text" unless $iv and $to_decrypt;
+
+    my $plain_text_with_checksum = $self->crypt_mode_cbc->decrypt($to_decrypt, $self->key, $iv);
+    
+    my @decrypted_values = split($self->separator, $plain_text_with_checksum);
+    my $digest = pop @decrypted_values;
+    my $confirm_digest = $self->_get_digest($iv, \@decrypted_values);
+
+    if ($confirm_digest eq $digest) {
+        if (wantarray) { 
+            return @decrypted_values;
+        }
+        else {
+            return join($separator , @decrypted_values);
+        } 
+    }
+    else {
+        croak "invalid encrypted text";
+    }
+}
+
+sub _get_digest {
+    my ($self, $iv, $texts) = @_;
+    return $self->checksum_digest_hex->($iv . join('', @$texts));
+}
+
+1;
