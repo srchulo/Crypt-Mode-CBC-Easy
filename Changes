@@ -1,6 +1,9 @@
 Revision history for Crypt::Mode::CBC::Easy
 
 {{$NEXT}}
+    Auto generate minimum perl version using [MinimumPerlFast]. (@manwar)
+
+0.005     2019-10-04 14:39:21-05:00 America/Chicago
     Auto generate META.json using the plugin [MetaJSON]. (@manwar)
 
 0.004     2017-01-05 20:48:23-08:00 America/Los_Angeles
